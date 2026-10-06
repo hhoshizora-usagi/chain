@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>チェーンリアクション 💥</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    overflow: hidden;
+    font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+    cursor: crosshair;
+    user-select: none;
+  }
+  canvas { display: block; }
+  #ui {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .stat {
+    color: #fff;
+    font-size: 18px;
+    text-shadow: 0 0 20px rgba(255,255,255,0.5);
+    letter-spacing: 1px;
+  }
+  .stat span {
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ff6ec7, #7b68ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  #message {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 32px;
+    font-weight: 700;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+    text-shadow: 0 0 40px rgba(255,110,199,0.8);
+    z-index: 10;
+    line-height: 1.6;
+  }
+  #message.show { opacity: 1; pointer-events: auto; }
+  #message .sub {
+    font-size: 18px;
+    font-weight: 400;
+    opacity: 0.7;
+    margin-top: 8px;
+  }
+
+  /* ===== Start Screen ===== */
+  #startScreen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+    background: rgba(10,10,26,0.9);
+  }
+  #startScreen h1 {
+    font-size: 48px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6ec7, #7b68ee, #00d4ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+  #startScreen .tagline {
+    color: rgba(255,255,255,0.5);
+    font-size: 16px;
+    margin-bottom: 32px;
+  }
+  .level-select {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .level-btn {
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 12px 28px;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    pointer-events: auto;
+  }
+  .level-btn:hover {
+    background: rgba(123,104,238,0.3);
+    border-color: #7b68ee;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(123,104,238,0.3);
+  }
+  .level-btn.selected {
+    background: linear-gradient(135deg, rgba(255,110,199,0.3), rgba(123,104,238,0.3));
+    border-color: #ff6ec7;
+    box-shadow: 0 0 20px rgba(255,110,199,0.3);
+  }
+  .start-action {
+    margin-top: 16px;
+    font-size: 20px;
+    padding: 16px 48px;
+    background: linear-gradient(135deg,rgba(255,110,199,0.3),rgba(123,104,238,0.3));
+    border-color: #ff6ec7;
+  }
+  .help-link {
+    margin-top: 20px;
+    color: rgba(255,255,255,0.4);
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.3s;
+    pointer-events: auto;
+    border: none;
+    background: none;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .help-link:hover { color: rgba(255,255,255,0.8); }
+
+  /* ===== Help / Instructions Overlay ===== */
+  #helpOverlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 30;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    background: rgba(10,10,26,0.92);
+    backdrop-filter: blur(8px);
+  }
+  #helpOverlay.show { display: flex; }
+  .help-card {
+    background: linear-gradient(145deg, rgba(30,30,60,0.95), rgba(20,20,45,0.95));
+    border: 1px solid rgba(123,104,238,0.3);
+    border-radius: 20px;
+    padding: 36px 40px;
+    max-width: 560px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(123,104,238,0.15);
+    color: #fff;
+  }
+  .help-card h2 {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #ff6ec7, #7b68ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+  }
+  .help-section {
+    margin-bottom: 20px;
+  }
+  .help-section h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #7b68ee;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .help-section p, .help-section li {
+    font-size: 14px;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.8;
+  }
+  .help-section ul {
+    list-style: none;
+    padding: 0;
+  }
+  .help-section ul li::before {
+    content: '▸ ';
+    color: #ff6ec7;
+  }
+  .help-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  .help-table th {
+    text-align: left;
+    font-size: 13px;
+    color: #7b68ee;
+    padding: 6px 12px;
+    border-bottom: 1px solid rgba(123,104,238,0.2);
+  }
+  .help-table td {
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    padding: 6px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .help-tip {
+    background: rgba(255,110,199,0.1);
+    border: 1px solid rgba(255,110,199,0.2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+    line-height: 1.7;
+  }
+  .help-tip strong { color: #ff6ec7; }
+  .close-help {
+    display: block;
+    margin: 20px auto 0;
+    padding: 10px 36px;
+    border-radius: 10px;
+    border: 2px solid rgba(123,104,238,0.4);
+    background: rgba(123,104,238,0.15);
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .close-help:hover {
+    background: rgba(123,104,238,0.3);
+    border-color: #7b68ee;
+  }
+
+  /* ===== In-game help button ===== */
+  #helpBtn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.5);
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 15;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s;
+  }
+  #helpBtn:hover {
+    border-color: #7b68ee;
+    color: #fff;
+    background: rgba(123,104,238,0.3);
+  }
+
+  /* ===== Combo ===== */
+  #combo {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 80px;
+    font-weight: 900;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 10;
+    background: linear-gradient(135deg, #ff6ec7, #ffb347, #7b68ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 30px rgba(255,110,199,0.6));
+  }
+
+  /* scrollbar for help */
+  .help-card::-webkit-scrollbar { width: 6px; }
+  .help-card::-webkit-scrollbar-track { background: transparent; }
+  .help-card::-webkit-scrollbar-thumb { background: rgba(123,104,238,0.3); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <div class="stat">レベル <span id="levelDisplay">1</span></div>
+  <div class="stat">スコア <span id="scoreDisplay">0</span></div>
+  <div class="stat">残り <span id="clicksDisplay">1</span> クリック</div>
+</div>
+
+<div id="message"></div>
+<div id="combo"></div>
+
+<!-- Help button (in-game) -->
+<button id="helpBtn">?</button>
+
+<!-- ===== Start Screen ===== -->
+<div id="startScreen">
+  <h1>💥 チェーンリアクション</h1>
+  <div class="tagline">1回のクリックで連鎖爆発を起こせ！</div>
+  <div class="level-select">
+    <button class="level-btn selected" data-level="easy">かんたん<br><small>30個</small></button>
+    <button class="level-btn" data-level="normal">ふつう<br><small>50個</small></button>
+    <button class="level-btn" data-level="hard">むずい<br><small>70個</small></button>
+  </div>
+  <button class="level-btn start-action" id="startBtn">▶ スタート</button>
+  <button class="help-link" id="openHelpFromStart">📖 あそびかた</button>
+</div>
+
+<!-- ===== Instructions Overlay ===== -->
+<div id="helpOverlay">
+  <div class="help-card">
+    <h2>📖 あそびかた</h2>
+
+    <div class="help-section">
+      <h3>🎯 ゲームの目的</h3>
+      <p>画面を飛び回るカラフルな光の玉を、<strong>たった1回のクリック</strong>でできるだけ多く消そう！<br>
+      クリックすると爆発が起きて、近くの玉を巻き込んで連鎖爆発が広がっていくよ。</p>
+    </div>
+
+    <div class="help-section">
+      <h3>🖱️ 操作方法</h3>
+      <ul>
+        <li><strong>クリック（タップ）</strong>：爆発を起こす（1回だけ！）</li>
+        <li>結果画面で<strong>クリック</strong>：もう一度プレイ</li>
+        <li><strong>?ボタン</strong>（右下）：ゲーム中にこの説明を開く</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <h3>⚡ チェーン（連鎖）のしくみ</h3>
+      <p>爆発の範囲に光の玉が入ると、その玉も爆発する。<br>
+      さらにその爆発が別の玉に届けば、どんどん連鎖していく！<br>
+      チェーンが続くほど、1つあたりのポイントが増えるよ。</p>
+    </div>
+
+    <div class="help-section">
+      <h3>📊 スコア計算</h3>
+      <p>連鎖数 × 10ポイント ＝ 1つの玉のスコア</p>
+      <table class="help-table">
+        <tr><th>連鎖</th><th>得点</th><th>例</th></tr>
+        <tr><td>1つ目</td><td>10点</td><td>最初に巻き込んだ玉</td></tr>
+        <tr><td>5つ目</td><td>50点</td><td>チェーンが乗ってきた！</td></tr>
+        <tr><td>10つ目</td><td>100点</td><td>大連鎖！</td></tr>
+        <tr><td>20つ目</td><td>200点</td><td>爆発の嵐！！</td></tr>
+      </table>
+    </div>
+
+    <div class="help-section">
+      <h3>🏆 難易度</h3>
+      <table class="help-table">
+        <tr><th>レベル</th><th>玉の数</th><th>目標</th><th>玉の大きさ</th></tr>
+        <tr><td>かんたん</td><td>30個</td><td>15個</td><td>大きめ ◎</td></tr>
+        <tr><td>ふつう</td><td>50個</td><td>30個</td><td>ふつう ○</td></tr>
+        <tr><td>むずい</td><td>70個</td><td>50個</td><td>小さめ △</td></tr>
+      </table>
+    </div>
+
+    <div class="help-section">
+      <h3>💡 攻略ヒント</h3>
+      <div class="help-tip">
+        <strong>コツ①</strong> 玉が密集している場所を狙おう！固まっているところでクリックすると連鎖が伸びやすい。<br><br>
+        <strong>コツ②</strong> 少し待ってから打つ！玉は動き続けるから、集まるタイミングを見計らおう。<br><br>
+        <strong>コツ③</strong> 画面の端より中央付近がおすすめ。爆発が四方に広がれるからね。<br><br>
+        <strong>コツ④</strong> チェーンが3の倍数になると「CHAIN!」表示が出るよ。目指せ大連鎖！
+      </div>
+    </div>
+
+    <div class="help-section">
+      <h3>🎖️ 評価</h3>
+      <ul>
+        <li><strong>🌟 パーフェクト</strong>：全部消した！（100%）</li>
+        <li><strong>🎉 クリア</strong>：目標数以上を消した</li>
+        <li><strong>💫 おしい</strong>：目標に届かなかった…次こそ！</li>
+      </ul>
+    </div>
+
+    <button class="close-help" id="closeHelp">とじる</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- Game State ---
+const COLORS = [
+  '#ff6ec7', '#7b68ee', '#00d4ff', '#ff4757',
+  '#ffa502', '#2ed573', '#ff6b81', '#a29bfe',
+  '#fd79a8', '#00cec9', '#e17055', '#6c5ce7',
+  '#fdcb6e', '#55efc4', '#fab1a0', '#74b9ff'
+];
+
+const LEVELS = {
+  easy:   { count: 30, target: 15, radius: 14 },
+  normal: { count: 50, target: 30, radius: 12 },
+  hard:   { count: 70, target: 50, radius: 10 }
+};
+
+let orbs = [];
+let explosions = [];
+let particles = [];
+let shockwaves = [];
+let score = 0;
+let totalPopped = 0;
+let clicks = 1;
+let gamePhase = 'menu'; // menu, playing, reacting, result
+let selectedLevel = 'easy';
+let levelConfig;
+let chainCount = 0;
+let maxChain = 0;
+let comboTimer = 0;
+
+// --- Orb Class ---
+class Orb {
+  constructor() {
+    this.x = Math.random() * (W - 100) + 50;
+    this.y = Math.random() * (H - 100) + 50;
+    this.r = levelConfig.radius + Math.random() * 4;
+    this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    this.vx = (Math.random() - 0.5) * 2.5;
+    this.vy = (Math.random() - 0.5) * 2.5;
+    this.phase = Math.random() * Math.PI * 2;
+    this.alive = true;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.phase += 0.03;
+
+    if (this.x < this.r) { this.x = this.r; this.vx *= -1; }
+    if (this.x > W - this.r) { this.x = W - this.r; this.vx *= -1; }
+    if (this.y < this.r) { this.y = this.r; this.vy *= -1; }
+    if (this.y > H - this.r) { this.y = H - this.r; this.vy *= -1; }
+  }
+
+  draw() {
+    const glow = 0.6 + Math.sin(this.phase) * 0.3;
+    ctx.save();
+    ctx.globalAlpha = glow;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r * 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = this.color + '30';
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(this.x - this.r*0.3, this.y - this.r*0.3, 0, this.x, this.y, this.r);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.3, this.color);
+    grad.addColorStop(1, this.color + '80');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// --- Explosion Class ---
+class Explosion {
+  constructor(x, y, color, chain) {
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    this.maxR = 50 + chain * 5;
+    this.r = 0;
+    this.growing = true;
+    this.life = 1;
+    this.chain = chain;
+
+    // spawn particles
+    const count = 12 + chain * 3;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+      const speed = 2 + Math.random() * 4;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: 2 + Math.random() * 3,
+        color,
+        life: 1,
+        decay: 0.015 + Math.random() * 0.02
+      });
+    }
+
+    // shockwave
+    shockwaves.push({ x, y, r: 0, maxR: this.maxR * 2, life: 1, color });
+  }
+
+  update() {
+    if (this.growing) {
+      this.r += 3;
+      if (this.r >= this.maxR) {
+        this.growing = false;
+      }
+    } else {
+      this.life -= 0.02;
+    }
+
+    // Check collision with orbs
+    for (const orb of orbs) {
+      if (!orb.alive) continue;
+      const dx = orb.x - this.x;
+      const dy = orb.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < this.r + orb.r) {
+        orb.alive = false;
+        chainCount++;
+        totalPopped++;
+        score += chainCount * 10;
+        if (chainCount > maxChain) maxChain = chainCount;
+
+        explosions.push(new Explosion(orb.x, orb.y, orb.color, Math.min(chainCount, 20)));
+
+        // Show combo
+        if (chainCount > 2 && chainCount % 3 === 0) {
+          showCombo(chainCount);
+        }
+
+        updateUI();
+      }
+    }
+  }
+
+  draw() {
+    if (this.life <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = this.life * 0.6;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.3, this.color);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  get dead() { return this.life <= 0 && !this.growing; }
+}
+
+// --- UI ---
+function updateUI() {
+  document.getElementById('scoreDisplay').textContent = score;
+  document.getElementById('clicksDisplay').textContent = clicks;
+}
+
+function showCombo(n) {
+  const el = document.getElementById('combo');
+  el.textContent = `${n} CHAIN!`;
+  el.style.opacity = 1;
+  el.style.transform = 'translate(-50%, -50%) scale(1.2)';
+  comboTimer = 60;
+}
+
+function showMessage(text, sub) {
+  const el = document.getElementById('message');
+  el.innerHTML = text + (sub ? `<div class="sub">${sub}</div>` : '');
+  el.classList.add('show');
+}
+
+function hideMessage() {
+  document.getElementById('message').classList.remove('show');
+}
+
+// --- Help Overlay ---
+function openHelp() {
+  document.getElementById('helpOverlay').classList.add('show');
+}
+function closeHelp() {
+  document.getElementById('helpOverlay').classList.remove('show');
+}
+
+document.getElementById('openHelpFromStart').addEventListener('click', openHelp);
+document.getElementById('closeHelp').addEventListener('click', closeHelp);
+document.getElementById('helpBtn').addEventListener('click', openHelp);
+
+// Close help on overlay background click
+document.getElementById('helpOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('helpOverlay')) closeHelp();
+});
+
+// Close help with Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeHelp();
+});
+
+// --- Game Logic ---
+function initGame() {
+  levelConfig = LEVELS[selectedLevel];
+  orbs = [];
+  explosions = [];
+  particles = [];
+  shockwaves = [];
+  score = 0;
+  totalPopped = 0;
+  clicks = 1;
+  chainCount = 0;
+  maxChain = 0;
+  comboTimer = 0;
+  gamePhase = 'playing';
+
+  document.getElementById('levelDisplay').textContent =
+    selectedLevel === 'easy' ? 'かんたん' :
+    selectedLevel === 'normal' ? 'ふつう' : 'むずい';
+  updateUI();
+  hideMessage();
+
+  for (let i = 0; i < levelConfig.count; i++) {
+    orbs.push(new Orb());
+  }
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('helpBtn').style.display = 'flex';
+}
+
+function checkResult() {
+  if (explosions.length === 0 && gamePhase === 'reacting') {
+    gamePhase = 'result';
+    const percent = Math.round((totalPopped / levelConfig.count) * 100);
+    const target = levelConfig.target;
+    const cleared = totalPopped >= target;
+
+    let title, sub;
+    if (percent === 100) {
+      title = '🌟 パーフェクト！！ 🌟';
+      sub = `全${levelConfig.count}個消した！ 最大チェーン: ${maxChain}`;
+    } else if (cleared) {
+      title = '🎉 クリア！';
+      sub = `${totalPopped}/${levelConfig.count}個消した（${percent}%）最大チェーン: ${maxChain}`;
+    } else {
+      title = '💫 おしい！';
+      sub = `${totalPopped}/${levelConfig.count}個（目標: ${target}個）最大チェーン: ${maxChain}`;
+    }
+
+    setTimeout(() => {
+      showMessage(title + `<br>スコア: ${score}`, sub + '<br><br>クリックでもう一度');
+    }, 500);
+  }
+}
+
+// --- Input ---
+canvas.addEventListener('click', (e) => {
+  // Don't react if help overlay is open
+  if (document.getElementById('helpOverlay').classList.contains('show')) return;
+
+  if (gamePhase === 'playing' && clicks > 0) {
+    clicks--;
+    chainCount = 0;
+    gamePhase = 'reacting';
+    explosions.push(new Explosion(e.clientX, e.clientY, '#fff', 0));
+    updateUI();
+  } else if (gamePhase === 'result') {
+    initGame();
+  }
+});
+
+// --- Level Select ---
+document.querySelectorAll('.level-btn[data-level]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.level-btn[data-level]').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedLevel = btn.dataset.level;
+  });
+});
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  initGame();
+});
+
+// --- Background stars ---
+const stars = [];
+for (let i = 0; i < 120; i++) {
+  stars.push({
+    x: Math.random() * 2000,
+    y: Math.random() * 2000,
+    r: Math.random() * 1.5,
+    twinkle: Math.random() * Math.PI * 2
+  });
+}
+
+function drawStars() {
+  for (const s of stars) {
+    s.twinkle += 0.02;
+    const alpha = 0.3 + Math.sin(s.twinkle) * 0.2;
+    ctx.beginPath();
+    ctx.arc(s.x % W, s.y % H, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fill();
+  }
+}
+
+// --- Main Loop ---
+function loop() {
+  ctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
+  ctx.fillRect(0, 0, W, H);
+
+  drawStars();
+
+  // Update & draw orbs
+  for (const orb of orbs) {
+    if (!orb.alive) continue;
+    orb.update();
+    orb.draw();
+  }
+
+  // Update & draw explosions
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    explosions[i].update();
+    explosions[i].draw();
+    if (explosions[i].dead) explosions.splice(i, 1);
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.98;
+    p.vy *= 0.98;
+    p.life -= p.decay;
+
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+      continue;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Shockwaves
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    const sw = shockwaves[i];
+    sw.r += 5;
+    sw.life -= 0.03;
+
+    if (sw.life <= 0) {
+      shockwaves.splice(i, 1);
+      continue;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = sw.life * 0.3;
+    ctx.beginPath();
+    ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2);
+    ctx.strokeStyle = sw.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Combo display
+  if (comboTimer > 0) {
+    comboTimer--;
+    const el = document.getElementById('combo');
+    if (comboTimer <= 0) {
+      el.style.opacity = 0;
+    } else {
+      el.style.opacity = Math.min(1, comboTimer / 20);
+    }
+  }
+
+  // Check if all explosions done
+  if (gamePhase === 'reacting') {
+    checkResult();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// Draw initial clean background
+ctx.fillStyle = '#0a0a1a';
+ctx.fillRect(0, 0, W, H);
+
+loop();
+</script>
+</body>
+</html>
